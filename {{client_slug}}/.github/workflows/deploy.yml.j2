@@ -1,0 +1,22 @@
+name: deploy
+on:
+  workflow_run: { workflows: [ build ], types: [ completed ] }
+  workflow_dispatch: {}
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${KUBE_CONFIG}" > ~/.kube/config
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      - name: Helm upgrade
+        run: |
+          helm upgrade --install {{ client_slug }} charts/odoo \
+            --namespace {{ k8s_namespace }} --create-namespace \
+            -f charts/odoo/values.yaml

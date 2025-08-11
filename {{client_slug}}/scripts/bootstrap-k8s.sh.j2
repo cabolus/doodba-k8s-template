@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NS="{{ k8s_namespace }}"
+kubectl get ns "$NS" >/dev/null 2>&1 || kubectl create ns "$NS"
+
+kubectl -n "$NS" create secret generic odoo-db \
+  --from-literal=user=odoo \
+  --from-literal=password="$(openssl rand -hex 16)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+{% if filestore_backend == "cephfs" %}
+cat <<EOF2 | kubectl -n "$NS" apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: odoo-filestore-{{ client_slug }}
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: {{ cephfs_storage_class }}
+  resources: { requests: { storage: 50Gi } }
+EOF2
+{% else %}
+kubectl -n "$NS" create secret generic odoo-s3 \
+  --from-literal=endpoint="{{ s3_endpoint }}" \
+  --from-literal=bucket="{{ s3_bucket }}" \
+  --from-literal=access_key="RELLENAR" \
+  --from-literal=secret_key="RELLENAR" \
+  --dry-run=client -o yaml | kubectl apply -f -
+{% endif %}
+
+echo "✅ Namespace y secretos listos en $NS"

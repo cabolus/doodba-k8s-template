@@ -1,0 +1,43 @@
+image:
+  repository: {{ registry }}
+  tag: "{{ odoo_version }}"
+  pullPolicy: IfNotPresent
+
+postgres:
+  host: cluster-odoo16-rw
+  port: 5432
+  db: prod
+  userSecret: odoo-db
+  userKey: user
+  passKey: password
+
+web:
+  replicas: 2
+  env:
+    LIST_DB: "false"
+    PROXY_MODE: "true"
+    INITIAL_LANG: "es_ES"
+    WORKERS: "4"
+    LIMIT_TIME_CPU: "120"
+    LIMIT_TIME_REAL: "240"
+
+cron:
+  enabled: true
+  maxThreads: "2"
+
+filestore:
+  enabled: true
+  {% if filestore_backend == "cephfs" -%}
+  existingClaim: odoo-filestore-{{ client_slug }}
+  {% else -%}
+  s3:
+    endpoint: "{{ s3_endpoint }}"
+    bucket: "{{ s3_bucket }}"
+  {% endif -%}
+
+ingress:
+  enabled: true
+  className: nginx
+  host: {{ domain }}
+  tlsSecret: odoo-{{ client_slug }}-tls
+  certIssuer: letsencrypt

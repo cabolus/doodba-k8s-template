@@ -1,0 +1,37 @@
+_min_copier_version: "9"
+_templates_suffix: ""
+_subdirectory: "{{ client_slug }}"
+
+questions:
+  client_name:
+    type: str
+    help: "Nombre del cliente (informativo)"
+  client_slug:
+    type: str
+    help: "Slug del proyecto (minúsculas y guiones)"
+    default: "{{ client_name|lower|replace(' ', '-') }}"
+  odoo_version:
+    type: str
+    default: "17.0"
+  registry:
+    type: str
+    default: "registry.k8s.abolus.com/abolus/{{ client_slug }}"
+  k8s_namespace:
+    type: str
+    default: "odoo-{{ client_slug }}"
+  domain:
+    type: str
+    default: "odoo.{{ client_slug }}.midominio.com"
+  filestore_backend:
+    type: str
+    choices: ["cephfs", "s3"]
+    default: "cephfs"
+  cephfs_storage_class:
+    type: str
+    default: "rook-cephfs"
+  s3_endpoint:
+    type: str
+    default: "https://rgw.ceph.example"
+  s3_bucket:
+    type: str
+    default: "odoo-{{ client_slug }}-filestore"

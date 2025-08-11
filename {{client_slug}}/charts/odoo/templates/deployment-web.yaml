@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "odoo.fullname" . }}-web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector: { matchLabels: { app: {{ include "odoo.fullname" . }}, tier: web } }
+  template:
+    metadata: { labels: { app: {{ include "odoo.fullname" . }}, tier: web } }
+    spec:
+      containers:
+      - name: odoo
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+          - name: PGHOST
+            value: "{{ .Values.postgres.host }}"
+          - name: PGPORT
+            value: "{{ .Values.postgres.port }}"
+          - name: PGDATABASE
+            value: "{{ .Values.postgres.db }}"
+          - name: PGUSER
+            valueFrom:
+              secretKeyRef: { name: {{ .Values.postgres.userSecret }}, key: {{ .Values.postgres.userKey }} }
+          - name: PGPASSWORD
+            valueFrom:
+              secretKeyRef: { name: {{ .Values.postgres.userSecret }}, key: {{ .Values.postgres.passKey }} }
+          - name: MAX_CRON_THREADS
+            value: "0"
+          {{- range $k, $v := .Values.web.env }}
+          - name: {{ $k }}
+            value: "{{ $v }}"
+          {{- end }}
+        ports:
+          - name: http
+            containerPort: 8069
+        readinessProbe:
+          httpGet: { path: /web/health, port: 8069 }
+          initialDelaySeconds: 20
+        livenessProbe:
+          httpGet: { path: /, port: 8069 }
+          initialDelaySeconds: 60
+        volumeMounts:
+        {{- if .Values.filestore.enabled }}
+        - name: filestore
+          mountPath: /var/lib/odoo
+        {{- end }}
+      volumes:
+      {{- if .Values.filestore.enabled }}
+      - name: filestore
+        persistentVolumeClaim: { claimName: {{ .Values.filestore.existingClaim }} }
+      {{- end }}

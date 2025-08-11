@@ -1,0 +1,40 @@
+{{- if .Values.cron.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "odoo.fullname" . }}-cron
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: {{ include "odoo.fullname" . }}, tier: cron } }
+  template:
+    metadata: { labels: { app: {{ include "odoo.fullname" . }}, tier: cron } }
+    spec:
+      containers:
+      - name: odoo
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        env:
+          - name: PGHOST
+            value: "{{ .Values.postgres.host }}"
+          - name: PGPORT
+            value: "{{ .Values.postgres.port }}"
+          - name: PGDATABASE
+            value: "{{ .Values.postgres.db }}"
+          - name: PGUSER
+            valueFrom:
+              secretKeyRef: { name: {{ .Values.postgres.userSecret }}, key: {{ .Values.postgres.userKey }} }
+          - name: PGPASSWORD
+            valueFrom:
+              secretKeyRef: { name: {{ .Values.postgres.userSecret }}, key: {{ .Values.postgres.passKey }} }
+          - name: MAX_CRON_THREADS
+            value: "{{ .Values.cron.maxThreads }}"
+        volumeMounts:
+        {{- if .Values.filestore.enabled }}
+        - name: filestore
+          mountPath: /var/lib/odoo
+        {{- end }}
+      volumes:
+      {{- if .Values.filestore.enabled }}
+      - name: filestore
+        persistentVolumeClaim: { claimName: {{ .Values.filestore.existingClaim }} }
+      {{- end }}
+{{- end }}
